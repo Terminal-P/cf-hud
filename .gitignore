@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+dist-ssr/
+*.local
+
+# tauri
+src-tauri/target/
+src-tauri/gen/
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# logs
+*.log
+npm-debug.log*
+
+# test / coverage
+coverage/
+.vitest/
+
+# local caches (kept out of git, used by CI/sandbox)
+.npm-cache/
+.npm-logs/
+
+# calibration output
+scripts/.cache/
