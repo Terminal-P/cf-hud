@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type UIEvent } from 'react';
 import { session, useSession } from '../../app/useSession';
 import { formatClockTime, formatDuration } from '../../core/format';
 import { vpRemainingMs } from '../../core/vp';
@@ -29,6 +29,14 @@ export function VpCard() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [startAt, setStartAt] = useState('');
+  const [visibleRounds, setVisibleRounds] = useState(10);
+
+  /** Infinite scroll for the recent-rounds list: load 10 more near the bottom. */
+  const handleRoundsScroll = (event: UIEvent<HTMLDivElement>) => {
+    const element = event.currentTarget;
+    if (element.scrollHeight - element.scrollTop - element.clientHeight > 32) return;
+    setVisibleRounds((count) => Math.min(count + 10, state.recentFinished.length));
+  };
 
   /**
    * Turn the optional `HH:MM` input into a unix timestamp. Times more than a
@@ -112,6 +120,13 @@ export function VpCard() {
             {busy ? <IconSpinner /> : null}
             {t('vpStart')}
           </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => void session.selectContest(null)}
+          >
+            {t('vpBrowseRounds')}
+          </button>
         </div>
         {error ? (
           <p className="vp-error" role="alert">
@@ -127,15 +142,20 @@ export function VpCard() {
   if (contest) return null;
 
   if (state.recentFinished.length > 0) {
-    const rounds = state.recentFinished.slice(0, 5);
+    const total = state.recentFinished.length;
+    const shown = state.recentFinished.slice(0, Math.min(visibleRounds, total));
     return (
       <Card className="vp-card vp-card--recent">
         <CardHead
           title={t('vpRecentRounds')}
-          action={<span className="faint">{rounds.length}</span>}
+          action={
+            <span className="faint">
+              {shown.length}/{total}
+            </span>
+          }
         />
-        <div className="vp-rounds">
-          {rounds.map((round) => (
+        <div className="vp-rounds" onScroll={handleRoundsScroll}>
+          {shown.map((round) => (
             <div className="vp-round" key={round.id}>
               <div className="vp-round-info">
                 <span className="vp-round-name" title={round.name}>
@@ -158,6 +178,17 @@ export function VpCard() {
               </button>
             </div>
           ))}
+          {visibleRounds < total ? (
+            <button
+              type="button"
+              className="btn btn-sm vp-load-more"
+              onClick={() =>
+                setVisibleRounds((count) => Math.min(count + 10, total))
+              }
+            >
+              {t('vpLoadMore')}
+            </button>
+          ) : null}
         </div>
         {error ? (
           <p className="vp-error" role="alert">

@@ -2325,3 +2325,26 @@ html[data-shell='pip'] .hud.is-mini {
   white-space: nowrap;
 }
 
+/* Recent-rounds browser: long list, lazy-loaded while scrolling. */
+.vp-rounds {
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+.vp-rounds::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vp-rounds::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 999px;
+}
+
+.vp-load-more {
+  width: 100%;
+  margin-top: 2px;
+}
+

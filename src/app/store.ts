@@ -265,7 +265,8 @@ export class SessionStore {
 
     try {
       const contests = await this.getContests();
-      const recentRounds = pickRecentFinished(contests, 8);
+      // Keep a long list of finished rounds; the UI lazy-loads it while scrolling.
+      const recentRounds = pickRecentFinished(contests, 200);
       const myHandleKey = this.state.handle.toLowerCase();
       // Resume an active virtual round after a reload even when no official
       // round is running (VP happens on finished contests).

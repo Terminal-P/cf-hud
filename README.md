@@ -41,6 +41,7 @@ During a rated round you move between the statement, the editor and the standing
 - **Virtual clock** — start the timer when you begin the round on Codeforces. Optionally enter the start time shown on the site to align it immediately (useful before your first submission, or to backfill a finished VP); the first submission then corrects it automatically. Polling speeds up to every 30 seconds while the clock runs.
 - **Virtual performance** — the same seed model, using the contest's pre-contest ratings, answers "what would this have been worth?". It is clearly labelled hypothetical, because virtual rounds do not change your rating.
 - **Auto-resume** — reload the app or restart the desktop build and an active virtual round is picked up again from its stored session.
+- **Round browser** — when no official round is running, the HUD lists recent finished rounds and lazy-loads more as you scroll (up to the 200 most recent), so older rounds are easy to replay.
 
 ### Desktop & UI
 
