@@ -7,10 +7,6 @@ A cross-platform floating HUD for Codeforces contests: live rank, score, problem
 [![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-lightgrey.svg)](#install-and-run)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-## Why
-
-During a rated round you move between the statement, the editor and the standings dozens of times. Every trip to codeforces.com costs focus, and on a single monitor it costs the whole screen. CF HUD is the second screen for those two hours: a narrow, always-on-top panel that answers the questions you actually ask mid-contest — where am I, what is my score, how long is left, and what am I predicted to gain or lose.
-
 <img src="docs/screenshot.png" alt="CF HUD panel during a live round: rank card with rank trend, rating prediction interval, problem matrix, rating goal and watch list" width="380" />
 
 ## Features
@@ -78,8 +74,6 @@ npm run preview   # serve the build at http://127.0.0.1:4173
 
 ### Desktop app
 
-The desktop app is the same frontend inside a Tauri 2 shell, with a frameless always-on-top window, the global shortcut and OS notifications.
-
 ```bash
 npm run tauri dev     # desktop window against the dev server
 npm run tauri build   # platform installer/bundle
@@ -112,23 +106,6 @@ src-tauri/    Tauri 2 desktop shell
 .github/      CI workflows
 ```
 
-## How rating prediction works
-
-The prediction mirrors the [official Codeforces rating system](https://codeforces.com/blog/entry/20762). For every participant the HUD computes the expected rank (seed) against the ratings of the field, takes the geometric mean of seed and actual rank, solves for the performance rating that seed implies, and halves the difference with the current rating:
-
-```
-seed_i = 1 + Σ_j 1 / (1 + 10^((r_i - r_j) / 400))
-m_i    = sqrt(seed_i × rank_i)
-R_i    = rating whose seed equals m_i        # performance
-Δ_i    = (R_i - r_i) / 2
-```
-
-The result is shown as an interval with a confidence level rather than a single number, because frozen standings, system tests and plagiarism re-rulings all move the final rank. The official deflation correction (a few points at most) is not applied; the interval is wide enough to absorb it.
-
-`npm run calibrate` replays the prediction against real `contest.ratingChanges` data. On 27,639 rated participants from three 2026 rounds it measured a **mean absolute error of 10.3 points**, median 7.7, p90 21.4, bias +0.8 and **94.7% interval coverage** (per band: ~9.9 below 1200, ~9.2 at 1200–1500, ~15.5 at 1500–1800, ~16.5 at 1800–2100). Treat these as typical observations, not guarantees.
-
-**This is unofficial.** The prediction is an estimate, not a promise, and CF HUD is not affiliated with Codeforces. Read [docs/RATING.md](docs/RATING.md) for the derivation, the worked example, edge cases and the calibration methodology.
-
 ## Data sources & API etiquette
 
 - Only public, anonymous Codeforces API endpoints are used. No API key, no login.
@@ -144,22 +121,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data flow and the cache
 
 ## Privacy
 
-- No accounts, no API keys, no cookies for tracking, no telemetry, no backend.
 - Everything is computed on your machine. Settings live in `localStorage`; cached data and rank history live in IndexedDB.
 - The only network requests are to `codeforces.com` for the public API.
-- Clearing site data (web) or the app data folder (desktop) removes everything CF HUD stored.
-
-## Roadmap
-
-Planned, not implemented in v0.1.0:
-
-- **Neighbour standings board** — the rows around you, with their solved sets, penalties and last submission times.
-- **OBS overlay** — a browser-source view for streamers.
-- **Browser extension** — the HUD embedded in the Codeforces standings page.
-- **Auto-update** — signed desktop updates.
-- **More languages** — beyond English and Simplified Chinese.
-
-Not planned: submission automation, reading other people's code, bypassing rate limits or frozen standings, or anything else that would help cheat.
 
 ## Contributing
 
@@ -175,3 +138,4 @@ Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the devel
 - [CF-Predictor](https://codeforces.com/blog/entry/50411) and [Carrot](https://github.com/meooow25/carrot) — prior art for rating prediction in the Codeforces ecosystem.
 - [MikeMirzayanov's "Open Codeforces Rating System"](https://codeforces.com/blog/entry/20762) — the formula this project implements.
 - Built with [React](https://react.dev), [Vite](https://vite.dev) and [Tauri](https://tauri.app).
+- DeepSeek Harness.

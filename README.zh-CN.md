@@ -78,7 +78,6 @@ npm run preview   # 在 http://127.0.0.1:4173 预览构建结果
 
 ### 桌面端
 
-桌面端就是同一份前端套在 Tauri 2 外壳里，额外拥有无边框置顶窗口、全局快捷键和系统通知。
 
 ```bash
 npm run tauri dev     # 对着开发服务器启动桌面窗口
@@ -112,23 +111,6 @@ src-tauri/    Tauri 2 桌面外壳
 .github/      CI 工作流
 ```
 
-## 等级分预测是怎么算的
-
-预测复刻了 [Codeforces 官方 rating 系统](https://codeforces.com/blog/entry/20762)。对每位选手，先用场上所有人的 rating 算出期望名次（seed），再把 seed 和实际名次取几何平均，反解出对应的表现分 R，最后与赛前 rating 的差值除以 2：
-
-```
-seed_i = 1 + Σ_j 1 / (1 + 10^((r_i - r_j) / 400))
-m_i    = sqrt(seed_i × rank_i)
-R_i    = 满足 seed(R) = m_i 的 rating      # 表现分
-Δ_i    = (R_i - r_i) / 2
-```
-
-结果以“区间 + 置信度”的形式展示，而不是一个精确数字，因为封榜、系统测试和赛后判作弊都会改变最终名次。官方还会做一次几分以内的通缩修正，这里没有实现，区间宽度足以覆盖这部分误差。
-
-`npm run calibrate` 会用真实的 `contest.ratingChanges` 数据回放预测。在 2026 年三场比赛、27,639 名有 rating 的参赛者上实测：**平均绝对误差 10.3 分**，中位数 7.7，p90 21.4，偏差 +0.8，**区间覆盖率 94.7%**（分段：1200 以下约 9.9，1200–1500 约 9.2，1500–1800 约 15.5，1800–2100 约 16.5）。这些是典型观察值，不是保证。
-
-**这是非官方预测。** 预测只是估计，不是承诺，CF HUD 与 Codeforces 没有隶属关系。推导过程、算例、边界情况和校准方法见 [docs/RATING.md](docs/RATING.md)。
-
 ## 数据来源与 API 使用规范
 
 - 只使用 Codeforces 的公开匿名 API，不需要 API key，也不需要登录。
@@ -144,22 +126,8 @@ R_i    = 满足 seed(R) = m_i 的 rating      # 表现分
 
 ## 隐私
 
-- 没有账号、没有 API key、没有跟踪 cookie、没有遥测、没有后端。
 - 所有计算都在本机完成。设置保存在 `localStorage`，缓存数据和名次历史保存在 IndexedDB。
 - 唯一的网络请求是发往 `codeforces.com` 的公开 API。
-- 清除站点数据（网页版）或应用数据目录（桌面端）即可删除 CF HUD 保存的全部内容。
-
-## 路线图
-
-以下功能计划中，v0.1.0 尚未实现：
-
-- **邻居榜单**——你前后若干名选手的解题集合、罚时和最后提交时间。
-- **OBS overlay**——给主播用的浏览器源画面。
-- **浏览器扩展**——直接嵌在 Codeforces 榜单页里的 HUD。
-- **自动更新**——带签名的桌面端更新。
-- **更多语言**——英文、简体中文之外的语言。
-
-明确不做：自动提交、读取他人代码、绕过限流或封榜，以及任何有助于比赛作弊的功能。
 
 ## 参与贡献
 
@@ -175,3 +143,4 @@ R_i    = 满足 seed(R) = m_i 的 rating      # 表现分
 - [CF-Predictor](https://codeforces.com/blog/entry/50411) 与 [Carrot](https://github.com/meooow25/carrot)——Codeforces 生态中 rating 预测的先驱。
 - [MikeMirzayanov 的 "Open Codeforces Rating System"](https://codeforces.com/blog/entry/20762)——本项目实现的公式来源。
 - 基于 [React](https://react.dev)、[Vite](https://vite.dev) 和 [Tauri](https://tauri.app) 构建。
+- DeepSeek Harness.
