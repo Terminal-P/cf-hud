@@ -7,7 +7,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cf-hud/cf-hud"
+    "url": "https://github.com/Terminal-P/cf-hud"
+  },
+  "homepage": "https://github.com/Terminal-P/cf-hud",
+  "bugs": {
+    "url": "https://github.com/Terminal-P/cf-hud/issues"
   },
   "keywords": [
     "codeforces",

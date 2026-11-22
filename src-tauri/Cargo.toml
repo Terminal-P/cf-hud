@@ -5,7 +5,7 @@ description = "A cross-platform floating HUD for Codeforces contests"
 authors = ["CF HUD contributors"]
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/cf-hud/cf-hud"
+repository = "https://github.com/Terminal-P/cf-hud"
 
 [lib]
 name = "cf_hud_lib"

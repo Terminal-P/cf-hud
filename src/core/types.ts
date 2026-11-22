@@ -113,8 +113,12 @@ export interface Submission {
   id: number;
   contestId?: number;
   creationTimeSeconds: number;
+  /** Seconds since the start of the participation (official or virtual). */
+  relativeTimeSeconds: number;
   verdict?: string;
+  programmingLanguage?: string;
   problem: Problem;
+  author?: Party;
 }
 
 /* ------------------------------------------------------------------ */
@@ -240,4 +244,46 @@ export interface HistoryPoint {
   rating: number;
   contestName: string;
   contestId: number;
+}
+
+/* ------------------------------------------------------------------ */
+/* Virtual participation                                              */
+/* ------------------------------------------------------------------ */
+
+export interface VpSession {
+  contestId: number;
+  handle: string;
+  /** Unix seconds when the virtual participation was started. */
+  startTimeSeconds: number;
+  durationSeconds: number;
+  /** `manual` = started from the HUD, `detected` = derived from a submission. */
+  source: 'manual' | 'detected';
+  createdAt: number;
+}
+
+export interface VpProblemCell extends ProblemCell {
+  /** Submissions sent to this problem during the virtual participation. */
+  submissionCount: number;
+  /** Relative seconds of the latest submission (solved or not). */
+  lastAttemptTimeSeconds?: number;
+}
+
+export interface VpSnapshot {
+  contestId: number;
+  handle: string;
+  fetchedAt: number;
+  startTimeSeconds: number;
+  durationSeconds: number;
+  /** True once the virtual clock has run out. */
+  finished: boolean;
+  problems: VpProblemCell[];
+  points: number;
+  penalty: number;
+  solved: number;
+  /** Number of official participants the virtual rank is compared against. */
+  participants: number;
+  /** Rank the user would have had among official participants. */
+  rank: number;
+  neighbors: { above: RowLookup | null; below: RowLookup | null };
+  submissionCount: number;
 }

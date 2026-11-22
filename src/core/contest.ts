@@ -78,7 +78,11 @@ export function selectContest(
       active.find((contest) => contest.id === preferredId) ??
       contests.find((contest) => contest.id === preferredId) ??
       null;
-    if (preferred) return { current: preferred, active, upcoming };
+    // A remembered finished round (for example a virtual participation) must
+    // never pin the HUD while a new official round is running.
+    if (preferred && (active.length === 0 || isActivePhase(preferred.phase))) {
+      return { current: preferred, active, upcoming };
+    }
   }
 
   if (active.length === 1) {

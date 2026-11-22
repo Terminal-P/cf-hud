@@ -17,6 +17,7 @@ import { Sparkline } from './Sparkline';
 export function RankCard() {
   const state = useSession();
   const t = useT();
+  const vpActive = Boolean(state.vp);
   const snapshot = state.snapshot;
   const me = snapshot?.me ?? null;
 
@@ -50,10 +51,17 @@ export function RankCard() {
             #
           </span>
           <span className="rank-value">{me.rank.toLocaleString()}</span>
+          {vpActive ? (
+            <Badge tone="info" className="rank-vp-badge">
+              {t('vpRankLabel')}
+            </Badge>
+          ) : null}
         </div>
         <div className="rank-side">
           <span className="rank-total">
-            {t('rankOf', { n: snapshot.participants.toLocaleString() })}
+            {vpActive
+              ? t('vpOfOfficial', { n: snapshot.participants.toLocaleString() })
+              : t('rankOf', { n: snapshot.participants.toLocaleString() })}
           </span>
           <Badge tone="info">{t('topPercent', { pct: formatTopPercent(percentile) })}</Badge>
         </div>

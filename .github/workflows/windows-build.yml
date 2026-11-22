@@ -1,0 +1,53 @@
+name: Windows installer
+
+# Manual build: Actions -> "Windows installer" -> Run workflow.
+# Produces an NSIS setup .exe (per-user, no admin required) and an MSI, uploaded
+# as the `cf-hud-windows` artifact. Tagged releases are handled by release.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundles:
+        description: "Comma separated Tauri bundles to build"
+        default: "nsis,msi"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Build Windows bundles
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri bundles
+        run: npx tauri build --bundles ${{ inputs.bundles || 'nsis,msi' }}
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: cf-hud-windows
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi

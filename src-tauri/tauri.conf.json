@@ -44,6 +44,15 @@
     "category": "Utility",
     "shortDescription": "Always-on-top HUD for live Codeforces contest standings, rating prediction and goal tracking.",
     "longDescription": "CF HUD is a lightweight, always-on-top desktop overlay for Codeforces contests. It shows your live rank, score, solved problems, rating prediction and goal tracking while you compete, without leaving the contest page. Built with Tauri and React for Windows, macOS and Linux.",
-    "license": "MIT"
+    "license": "MIT",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English", "SimpChinese"]
+      }
+    }
   }
 }

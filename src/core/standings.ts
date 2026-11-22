@@ -62,6 +62,12 @@ export function parseStandings(
   }
 
   const me = rowIndex.get(lowerHandle) ?? null;
+  // The API sometimes advertises the fixed problem points; prefer that value
+  // over the maximum we observed (a problem nobody solved would otherwise be 0).
+  for (let i = 0; i < problemCount; i += 1) {
+    const advertised = problems[i].points;
+    if (typeof advertised === 'number' && advertised > 0) pointsPossible[i] = advertised;
+  }
   let neighbors: Snapshot['neighbors'] = { above: null, below: null };
   if (me) {
     const myRowIndex = rows.findIndex(

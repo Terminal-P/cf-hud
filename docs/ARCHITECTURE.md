@@ -18,7 +18,8 @@ This document describes how data moves through the app, where the module boundar
 ┌──────────────────────────────────────────────────────────────┐
 │ codeforces.com/api (public, anonymous, CORS-enabled)         │
 │   contest.list · contest.standings · user.ratedList ·        │
-│   user.info · contest.ratingChanges · user.rating            │
+│   contest.status · user.info · contest.ratingChanges ·       │
+│   user.rating                                                │
 └──────────────────────────┬───────────────────────────────────┘
                            │ HTTPS; 1 request / 2 s; ~90 s cadence
                            ▼
@@ -70,6 +71,7 @@ This document describes how data moves through the app, where the module boundar
 | `src/core/api/codeforces.ts` | Typed wrapper over the endpoints the HUD uses. `standings()` deliberately sends exactly one parameter. |
 | `src/core/types.ts` | Raw Codeforces response shapes plus the normalized model (`Snapshot`, `Prediction`, `GoalPlan`, `WatchEntry`, `Settlement`, `RankPoint`, …). |
 | `src/core/standings.ts` | `parseStandings()`: turns the full payload into a `Snapshot` (me, above/below neighbours, per-problem cells, participants, frozen flag, fetched-at) and a lowercase handle → row index. |
+| `src/core/vp.ts` | Virtual participation math: picking virtual submissions, scoring them like the ranklist (first AC, rejected attempts, penalty minutes), the virtual start time, rank insertion into the official field, and a `VpSnapshot`. |
 | `src/core/contest.ts` | Contest selection (`selectContest`), phase helpers and the wall-clock view (`contestClock`: remaining, elapsed, progress). |
 | `src/core/rating/predict.ts` | Rating pool construction, seed/performance/delta math, prediction intervals and confidence, goal planning (`planGoal`). |
 | `src/core/format.ts` | Small display helpers: delta sign, durations, clock time, percentiles, relative time, ordinals. |
@@ -94,7 +96,8 @@ A refresh runs this sequence:
 3. If there is no contest to watch, go idle and poll again in 5 minutes.
 4. If the contest is `BEFORE`, schedule the next poll for kickoff (+5 s) or in 5 minutes, whichever comes first, and show the countdown.
 5. Otherwise fetch the full standings, sync the server clock, parse into a `Snapshot`, build or reuse the rating pool, then derive prediction, goal plan, watch entries, rank history and settlement.
-6. Emit events for rank drops, lost goals, the 15/5-minute marks and published ratings; schedule the next poll based on the phase.
+6. For a finished round, rebuild the virtual-participation view (if any) from `contest.status`, merge it into the snapshot, and derive the virtual performance estimate and goal.
+7. Emit events for rank drops, lost goals, the 15/5-minute marks and published ratings; schedule the next poll based on the phase (or on the virtual clock, if one is running).
 
 The scheduling table:
 
@@ -106,6 +109,8 @@ The scheduling table:
 | `PENDING_SYSTEM_TEST` / `SYSTEM_TEST` | 2 min |
 | `FINISHED`, rating changes not published | 4 min |
 | `FINISHED`, rating changes published | 30 min |
+| Virtual participation, clock running | 30 s (`contest.status` only) |
+| Virtual participation, clock over | 10 min |
 | Failed request | Backoff: `max(30 s, pollSeconds) × 2`, capped at 5 min |
 | `has not started` error from the API | Retry in 30 s without surfacing an error |
 
@@ -136,8 +141,11 @@ Three layers, from fastest to most persistent:
 | In-memory | `lastSnapshot`, `lastRowIndex`, `lastPool` | Session | Serve watch-list lookups between polls. |
 | In-memory | `memoryCache` (in `storage.ts`) | Session | Mirror of read values; fallback when IndexedDB is unavailable. |
 | `localStorage` | `cf-hud:settings:v1` | Until cleared | Handle, selected contest, target rating, watch list, language, theme, opacity, mini mode, notifications, poll interval, onboarding flag. |
+| `localStorage` | `cf-hud:vp:v1` | Until stopped | Virtual participation sessions by contest id (start time, duration, source). |
 | IndexedDB store `cache` | `contest-list` | 5 min | Contest discovery without re-downloading ~1 MB every poll. |
 | IndexedDB store `cache` | `rated:<contestId>` | 12 h | Participant ratings for the prediction pool. |
+| IndexedDB store `cache` | `rating-changes:<contestId>` | 12 h | Pre-contest ratings for virtual performance and settlement. |
+| IndexedDB store `cache` | `user-rating:<handle>` | 1 h | The user's rating history, used to derive their pre-contest rating for a replayed round. |
 | IndexedDB store `cache` | `rating-history:<handle>` | 1 h | Rating history chart after settlement. |
 | IndexedDB store `rank-history` | contest id | Until cleared; max 720 points | Locally recorded rank/points snapshots for the sparkline. |
 
@@ -179,6 +187,23 @@ The pool also drives conservative confidence and interval widths:
 
 Goal planning reuses the same seed values: the target performance is `r + 2Δ`, its seed gives the required geometric mean, and the required rank is `m² / seed(r)`. The status compares the current delta with the target and flags impossible targets. The full derivation lives in [RATING.md](RATING.md).
 
+## Virtual participation
+
+Virtual participation (VP) replays a **finished** round. It bends the data pipeline in two places:
+
+1. **The official standings do not contain the virtual user.** The anonymous `contest.standings` payload is official participants only, and the 2026 restriction removes `showUnofficial`, so there is no way to read an unofficial ranklist. The store instead fetches only the user's submissions with `contest.status?contestId=…&handle=…` and rebuilds the score:
+   - per problem, the first `OK` submission is the solve; rejected attempts before it add 10 penalty minutes each (compilation errors and skipped submissions do not count);
+   - the solve time adds `floor(seconds / 60)` penalty minutes;
+   - the problem's point value comes from the standings snapshot.
+
+2. **The virtual rank is an insertion, not a real ranklist.** The rebuilt `(points, penalty)` pair is compared with the official rows: only strictly better rows are counted, so the result answers "where would this score have placed among the official participants?". Ties follow the official convention. It is close to what a virtual participant sees, but not the same table Codeforces shows with "unofficial" enabled.
+
+The virtual clock stores `startTimeSeconds` and the contest duration. A manually started timer begins at the current server time, or at an explicit start time when one is supplied (`startVirtualParticipation(contestId, startAtSeconds)`); the first virtual submission carries the authoritative start in `party.startTimeSeconds`, so the store corrects the session as soon as one exists. An explicit start in the past also allows backfilling a virtual round that is already over. Sessions are persisted in `localStorage` under `cf-hud:vp:v1`, and an active one is resumed on reload even when no official round is running.
+
+Virtual performance reuses the same seed/performance math. The reconstructed rank is placed into the official field, and the pool is seeded from the contest's **pre-contest** ratings in `contest.ratingChanges` (falling back to `ratedList` when changes are not published, for example in unrated rounds). The user's own pre-contest rating is derived from their `user.rating` history when they only participated virtually, so replaying an old round does not use today's rating. The estimate is explicitly hypothetical — virtual rounds never change a Codeforces rating — and the UI labels it that way.
+
+While a VP is active the store merges the virtual view into the normal `Snapshot` (`me`, `problems`, `neighbours`), so every card keeps working unchanged, and polling switches to the 30-second `contest.status` cadence. Starting or stopping a VP is explicit, and a stopped VP is not re-detected for that contest in the same session.
+
 ## Window model
 
 ### Browser
@@ -218,9 +243,10 @@ Platform behavior is worth testing rather than assuming: always-on-top over macO
 | `tests/standings.test.ts` | Parsing, handle indexing, neighbours, problem aggregation, frozen flag. |
 | `tests/rating.test.ts` | Seed/performance/delta values, fallback 1400, interval behavior, goal planning, edge cases. |
 | `tests/format.test.ts` | Delta signs, durations, percentiles, ordinals. |
-| `tests/store.test.ts` | Store polling with a mocked API: contest selection, prediction wiring, backoff and error retention. |
+| `tests/vp.test.ts` | Virtual submission filtering, penalty/score reconstruction, rank insertion, virtual clock and snapshot. |
+| `tests/store.test.ts` | Store polling with a mocked API: contest selection, prediction wiring, virtual-participation detection/start/stop, backoff and error retention. |
 
-The domain logic is deliberately pure so it can be tested without a DOM or a network. `CfClient` accepts an injected `fetch` implementation, clock and base URL, and `SessionStore` accepts an injected `CodeforcesApi`; that is how polling, caching and error handling are tested without touching the real API. There are 32+ tests.
+The domain logic is deliberately pure so it can be tested without a DOM or a network. `CfClient` accepts an injected `fetch` implementation, clock and base URL, and `SessionStore` accepts an injected `CodeforcesApi`; that is how polling, caching, VP and error handling are tested without touching the real API. There are 50+ tests.
 
 CI runs `npm run typecheck`, `npm test` and `npm run build` on every push to `main` and every pull request, plus a `cargo check` of the desktop shell. The release workflow under `.github/workflows/` builds desktop bundles when a version tag is pushed.
 
@@ -240,4 +266,7 @@ The script fetches the standings and `contest.ratingChanges` for each contest, r
 - **No backend means no aggregation.** Each client pays for its own full standings downloads. The ~90 s cadence keeps this acceptable for personal use; it is not a design for thousands of simultaneous users. A shared cache proxy would be the next step if usage grows, but it is explicitly out of scope for v0.1.0.
 - **The data is only as fresh as the server cache.** A rank shown on screen can be up to a few minutes behind submissions.
 - **Participant counts are approximate**, for the reasons above.
+- **Virtual ranks are approximate.** Codeforces does not expose an unofficial ranklist through the anonymous API, so the HUD inserts the reconstructed score into the official field. That is a very good approximation for "where would I have placed", but it is not the table the site would show with "unofficial" enabled.
+- **Virtual timers need one submission to become exact.** A manual start begins at the current server time; the authoritative virtual start only arrives with the first submission.
+- **Virtual performance is hypothetical** and uses pre-contest ratings; the official deflation correction is not applied. It must never be read as a rating change.
 - **UI shell is the newest layer.** The data, caching and rating layers are the stable core; the components under `src/ui/` are still evolving.

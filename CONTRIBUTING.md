@@ -13,7 +13,7 @@ Thanks for wanting to help. CF HUD is a small, dependency-light project, and the
 Prerequisites: Node.js 20 or newer and npm. The desktop shell additionally needs a stable Rust toolchain and the Tauri 2 platform prerequisites (WebView2 on Windows, Xcode command line tools on macOS, WebKitGTK and build tools on Linux).
 
 ```bash
-git clone https://github.com/cf-hud/cf-hud.git
+git clone https://github.com/Terminal-P/cf-hud.git
 cd cf-hud
 npm install
 npm run dev        # web app at http://127.0.0.1:1420
@@ -54,6 +54,7 @@ Keep new logic in the layer where it belongs, and keep the UI dumb.
 
 - Any change to `src/core` logic needs a test. Bug fixes should come with a regression test.
 - Tests must be deterministic and offline. The API client accepts an injectable `fetch` implementation and clock, so mock at that boundary rather than calling the network.
+- Virtual participation changes belong in `tests/vp.test.ts` (pure scoring/rank/clock functions) and `tests/store.test.ts` (detection, start/stop, start-time sync). Store tests use fake timers/APIs, never the live API.
 - Run `npm test` before opening a pull request; the suite must stay green.
 - If you change prediction math or interval widths, also run `npm run calibrate` and include the before/after numbers (MAE, bias, interval coverage) in the pull request.
 

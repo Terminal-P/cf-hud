@@ -31,6 +31,9 @@ function cellAriaLabel(problem: ProblemCell, t: TFunction): string {
 export function ProblemMatrix() {
   const state = useSession();
   const t = useT();
+  // The merged VP snapshot has no field-wide solve counts, so that badge is
+  // hidden (and the accessible label omits it) during virtual participation.
+  const vpActive = Boolean(state.vp);
   const snapshot = state.snapshot;
 
   if (!snapshot) return null;
@@ -66,18 +69,20 @@ export function ProblemMatrix() {
                   ? 'is-burnt'
                   : 'is-attempted'
                 : 'is-untouched';
-            const aria = cellAriaLabel(problem, t);
+            const aria = vpActive ? undefined : cellAriaLabel(problem, t);
             return (
               <div
                 key={problem.index}
                 className={`problem-cell ${state_}`}
-                role="img"
+                role={vpActive ? undefined : 'img'}
                 aria-label={aria}
                 title={aria}
               >
                 <div className="problem-top">
                   <span className="problem-index">{problem.index}</span>
-                  <span className="problem-solvers">{formatCompact(problem.solvedCount)}</span>
+                  {vpActive ? null : (
+                    <span className="problem-solvers">{formatCompact(problem.solvedCount)}</span>
+                  )}
                 </div>
                 <span className="problem-points">{formatPoints(problem.pointsPossible)}</span>
                 <span className="problem-status">

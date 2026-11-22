@@ -2,18 +2,16 @@
 
 一个跨平台的 Codeforces 比赛悬浮 HUD：实时排名、分数、题目状态和等级分预测，尽在一个约 380 px 宽、常驻 IDE 上方的置顶小窗里。
 
-[![CI](https://github.com/cf-hud/cf-hud/actions/workflows/ci.yml/badge.svg)](https://github.com/cf-hud/cf-hud/actions/workflows/ci.yml)
+[![CI](https://github.com/Terminal-P/cf-hud/actions/workflows/ci.yml/badge.svg)](https://github.com/Terminal-P/cf-hud/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-lightgrey.svg)](#安装与运行)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-
-*徽章与克隆命令中使用的仓库地址 `github.com/cf-hud/cf-hud` 是占位符，项目正式发布时请替换成实际地址。*
 
 ## 为什么做它
 
 在一场 rated 比赛中，你会在题面、编辑器和榜单之间来回切换几十次。每打开一次 codeforces.com 都是一次注意力中断，如果只有一块屏幕，还要搭上整个画面。CF HUD 想做的，就是这两个小时里的“第二块屏”：一个窄小的置顶面板，随时回答比赛中最常问的几个问题——我现在第几名、拿了多少分、还剩多少时间、按目前名次大概会涨多少分或者掉多少分。
 
-<!-- 截图：待补充。建议补充：比赛中悬浮窗与编辑器同屏的场景（深色主题）、带名次差距的排名卡、题目状态矩阵、等级分预测面板（浅色主题）。 -->
+<img src="docs/screenshot.png" alt="比赛进行中的 CF HUD：排名卡与排名趋势、预测区间、题目矩阵、目标规划和关注列表" width="380" />
 
 ## 功能
 
@@ -37,9 +35,16 @@
 - **Rating 历史**——你的 rating 走势图，在 rating 更新后刷新。
 - **Rating 公布提醒**——新 rating 出炉时弹出 toast 和系统通知。
 
+### 虚拟参赛（VP）
+
+- **回放已结束的比赛**——虚拟参赛者不在官方榜单数据里，所以 HUD 会用你自己的提交重新计分，再插入官方榜单，显示虚拟名次、分数、与前后名次的差距以及每题状态。
+- **虚拟计时**——在 Codeforces 上开始虚拟参赛后启动计时。可以顺手填写官网显示的开始时间立即对齐（首次提交前很有用，也能补录已经结束的 VP）；首次提交后会自动校正。计时进行中轮询提速到 30 秒一次。
+- **虚拟表现分**——同一套 seed 模型，用该场比赛赛前的 rating 数据回答“这一场大概能打多少分”。明确标注为假设值，因为虚拟参赛不改变 rating。
+- **自动恢复**——刷新页面或重启桌面端后，进行中的虚拟参赛会从已保存的会话里自动恢复。
+
 ### 桌面与界面
 
-- **悬浮窗**——置顶开关、无边框可拖动，位置和尺寸由系统记住，还有迷你模式。
+- **悬浮窗**——置顶开关、无边框可拖动，位置和尺寸由系统记住；迷你模式显示排名、表现分、预测涨跌和倒计时，并保留与完整模式相同的题目卡片。
 - **全局快捷键**——桌面端随时按 Ctrl+Shift+H，不用切换窗口就能控制悬浮窗。
 - **浏览器画中画**——在浏览器里它就是一个普通页面；通过 Document Picture-in-Picture 可以弹成一个小置顶窗，和编辑器并排。
 - **主题与语言**——深色 / 浅色主题、可调透明度、英文 / 简体中文界面。
@@ -55,7 +60,7 @@
 ### 网页版
 
 ```bash
-git clone https://github.com/cf-hud/cf-hud.git
+git clone https://github.com/Terminal-P/cf-hud.git
 cd cf-hud
 npm install
 npm run dev
@@ -81,18 +86,22 @@ npm run tauri build   # 打包平台安装程序
 
 首次运行桌面端需要编译 Rust 外壳，会多花几分钟。当前的发布版本尚未代码签名，首次启动时系统可能会给出安全提示。
 
+#### Windows 安装包
+
+在 Windows 上执行 `npm run tauri build` 会生成免管理员的 NSIS `.exe` 安装包和 `.msi`，位于 `src-tauri/target/release/bundle/`。仓库还带了 `scripts/build-windows.ps1`，会自动检查环境、构建两种安装包并打印路径。没有 Windows 电脑的话，把仓库推到 GitHub，在 Actions 里运行 **Windows installer** 工作流（Run workflow），即可下载 `cf-hud-windows` 产物（内含两种安装包）。完整的环境要求、产物路径和签名说明见 [docs/BUILD-WINDOWS.md](docs/BUILD-WINDOWS.md)。
+
 ### 其他命令
 
 | 命令 | 作用 |
 | --- | --- |
-| `npm test` | 运行 Vitest 测试（32+ 个用例）。 |
+| `npm test` | 运行 Vitest 测试（50+ 个用例，包含虚拟参赛计分与 store 集成测试）。 |
 | `npm run typecheck` | 只做 TypeScript 类型检查。 |
 | `npm run calibrate` | 用真实比赛对比预测值与官方 rating 变化，会访问线上 API。 |
 
 ### 仓库结构
 
 ```
-src/core/     Codeforces API 客户端、榜单解析、比赛逻辑、rating 计算
+src/core/     Codeforces API 客户端、榜单解析、比赛逻辑、rating 计算、虚拟参赛
 src/data/     设置（localStorage）与 IndexedDB 缓存
 src/app/      会话 store、轮询与 React hook
 src/ui/       React 组件与样式
@@ -126,6 +135,7 @@ R_i    = 满足 seed(R) = m_i 的 rating      # 表现分
 - 榜单大约每 90 秒轮询一次，因为服务端会缓存 1–3 分钟。
 - 2026 年起，常规比赛的 `contest.standings` 只接受匿名 GET、且只能带一个参数（`contestId`），返回的是完整榜单——几 MB，且由服务端缓存。CF HUD 在本地解析这份数据，只保留小的派生模型。
 - 预测所需的选手 rating 来自 `user.ratedList`，每场比赛只取一次，并在 IndexedDB 中缓存 12 小时，避免重复流量。
+- 虚拟参赛无法从榜单接口读取，因此分数由 `contest.status?contestId=…&handle=…`（响应很小，虚拟计时期间每 30 秒轮询一次）重建；虚拟表现分的种子使用 `contest.ratingChanges` 中该场比赛赛前的 rating，缓存 12 小时。
 - 不做网页抓取、不做自动化、不做自动提交，也永远不展示他人的源代码。HUD 只呈现公开榜单本来就有的信息。
 - 请遵守 API 条款：不要高频请求，不要搭建放大请求量的代理，同时开多个实例时请调低轮询频率（也就是拉长轮询间隔）。
 

@@ -24,17 +24,20 @@ export function PredictionCard() {
   const state = useSession();
   const t = useT();
   const result = state.prediction;
+  const vpActive = Boolean(state.vp);
+  const title = vpActive ? t('vpPredictionTitle') : t('prediction');
 
   if (!result) return null;
 
   if (!result.ok) {
     return (
       <Card className="prediction-card">
-        <CardHead title={t('prediction')} />
+        <CardHead title={title} />
         <p className="empty">{t('predictionUnavailable')}</p>
         <p className="hint">
           {result.reason === 'unrated' ? t('reasonUnrated') : t('reasonNoRatings')}
         </p>
+        {vpActive ? <p className="vp-note">{t('vpPredictionNote')}</p> : null}
         <p className="disclaimer">{t('disclaimer')}</p>
       </Card>
     );
@@ -52,13 +55,15 @@ export function PredictionCard() {
   return (
     <Card className="prediction-card">
       <CardHead
-        title={t('prediction')}
+        title={title}
         action={
           <Badge tone={confidenceTone} title={t('confidence')}>
             {t('confidence')} {t(confidenceKey[prediction.confidence])}
           </Badge>
         }
       />
+
+      {vpActive ? <p className="vp-note">{t('vpPredictionNote')}</p> : null}
 
       <div className="delta-hero">
         <span className="delta-value" style={{ color: deltaColor(prediction.delta) }}>

@@ -145,18 +145,30 @@ rank_needed = m_target² / seed(r)
 
 The last line follows from `m² = seed × rank`. The result is clamped to `[1, participants]`; if the required rank falls outside the field, the target is reported as unreachable from that contest. The panel compares the current delta with the target to show `on-track`, `need-up` or `unreachable`, and the UI can phrase the gap as "catch N more people".
 
+## Virtual participation performance
+
+Virtual rounds do not change rating, so there is no delta to predict. The HUD instead estimates **performance**:
+
+1. Virtual participants are absent from the official standings payload, so the score is rebuilt from the user's own submissions (first AC, rejected attempts before it, penalty minutes).
+2. That `(points, penalty)` is inserted into the official ranklist — counting only strictly better rows — to obtain a virtual rank against the official field.
+3. The seed/performance math runs with that rank, seeded against the contest's **pre-contest** ratings from `contest.ratingChanges`. The user's own pre-contest rating is derived from their `user.rating` history when they only participated virtually, so old rounds are not evaluated with today's rating.
+4. The result is displayed as a hypothetical delta plus interval, and labelled as not affecting rating.
+
+Two caveats matter more than usual here: the official-field insertion is an approximation of the unofficial ranklist, and the pre-contest ratings come from the rating-change list, which is exact only once Codeforces publishes it. Treat a virtual estimate as "performance at this field strength", not as a rating prediction.
+
 ## Edge cases
 
 | Case | Behavior |
 | --- | --- |
 | **Unrated newcomer** | No public rating exists yet. The pool assigns the fallback **1400** and marks the prediction as estimated; the user's own prediction is unavailable when they have no rating at all (`unrated`). Newcomers are seeded through Codeforces' separate provisional system, so their real delta can differ substantially from this formula. Do not rely on a first-contest prediction. |
-| **Frozen standings** | During the last part of a contest the standings are frozen and late submissions are hidden. The displayed rank is not the final rank, so the prediction can move significantly either way. The interval error is doubled (20 points), confidence is `low`, and a `frozen` note and badge are shown. |
+| **Frozen standings** | During the last part of a contest the standings are frozen and late submissions are hidden. The displayed rank is not the final rank, so the prediction can move significantly either way. The interval error is doubled (30 points), confidence is `low`, and a `frozen` note and badge are shown. |
 | **System tests** | Between coding and rating publication, ranks change as submissions fail or pass system tests. Predictions in `PENDING_SYSTEM_TEST` / `SYSTEM_TEST` are marked `provisional`. |
 | **Plagiarism re-rulings** | Published rating changes can be revised after the fact (disqualifications, recalculation). Settlement compares against the most recent published changes; an earlier prediction may no longer match. |
 | **Participant count** | `participants` is the number of rows in the standings snapshot, not the number of rated participants in `ratingChanges` (which is often larger). The prediction is internally consistent with the snapshot, but copy says "about" for the field size. |
 | **Missing ratings** | `user.ratedList` can omit some participants, and a transient failure can make it unavailable entirely. Missing individuals fall back to 1400 (`estimatedRatings`); a completely unavailable list hides the prediction while the rank card keeps working (`noRatings`). |
 | **Small fields** | Below 100 participants the formula is noisy and the field is unrepresentative; confidence is `low` and a `smallField` note is added. |
 | **Ties** | Tied participants share a `rank`. The formula works with the shared rank, so tied players receive nearly the same prediction. |
+| **Virtual participation** | No rating is at stake. The HUD reconstructs the score from submissions, inserts it into the official ranklist, and reports a hypothetical performance delta from pre-contest ratings. It is an estimate of "what this run was worth", not a rating change. |
 | **Deflation omitted** | The published delta can be a few points lower than the point estimate, as described above. |
 
 ## Calibration

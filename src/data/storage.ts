@@ -1,4 +1,4 @@
-import type { RankPoint } from '../core/types';
+import type { RankPoint, VpSession } from '../core/types';
 
 /* ------------------------------------------------------------------ */
 /* Settings (localStorage)                                             */
@@ -152,4 +152,76 @@ export async function getRankHistory(contestId: number): Promise<RankPoint[]> {
 
 export async function setRankHistory(contestId: number, points: RankPoint[]): Promise<void> {
   await withStore(STORE_HISTORY, 'readwrite', (store) => store.put(points, contestId));
+}
+
+/* ------------------------------------------------------------------ */
+/* Virtual participation sessions                                      */
+/* ------------------------------------------------------------------ */
+
+const VP_SESSIONS_KEY = 'cf-hud:vp:v1';
+
+type VpSessionMap = Record<string, VpSession>;
+
+function readVpSessions(): VpSessionMap {
+  try {
+    const raw = localStorage.getItem(VP_SESSIONS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as VpSessionMap;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeVpSessions(sessions: VpSessionMap): void {
+  try {
+    localStorage.setItem(VP_SESSIONS_KEY, JSON.stringify(sessions));
+  } catch {
+    // Session cannot be persisted in private mode; the in-memory state still works.
+  }
+}
+
+/** All remembered virtual sessions, newest first. */
+export function loadVpSessions(): VpSession[] {
+  return Object.values(readVpSessions())
+    .filter((session) => session && typeof session.contestId === 'number')
+    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+}
+
+export function loadVpSession(contestId: number): VpSession | null {
+  return readVpSessions()[String(contestId)] ?? null;
+}
+
+export function saveVpSession(session: VpSession): void {
+  const sessions = readVpSessions();
+  sessions[String(session.contestId)] = session;
+  writeVpSessions(sessions);
+}
+
+export function clearVpSession(contestId: number): void {
+  const sessions = readVpSessions();
+  delete sessions[String(contestId)];
+  writeVpSessions(sessions);
+}
+
+const VP_DISMISSED_KEY = 'cf-hud:vp-dismissed:v1';
+
+/** Contests where the user explicitly stopped virtual tracking (survives reload). */
+export function loadVpDismissed(): number[] {
+  try {
+    const raw = localStorage.getItem(VP_DISMISSED_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((id): id is number => typeof id === 'number') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveVpDismissed(contestIds: number[]): void {
+  try {
+    localStorage.setItem(VP_DISMISSED_KEY, JSON.stringify(contestIds));
+  } catch {
+    // Ignore storage failures; dismissals are then session-only.
+  }
 }

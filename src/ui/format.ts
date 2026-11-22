@@ -2,7 +2,7 @@
 
 import { formatDuration } from '../core/format';
 import type { Contest } from '../core/types';
-import type { TFunction, TranslationKey } from './i18n';
+import type { Language, TFunction, TranslationKey } from './i18n';
 
 /**
  * Codeforces rank colour, tuned for dark backgrounds.
@@ -68,6 +68,19 @@ export function formatAgo(tr: TFunction, fromMs: number | null, nowMs: number): 
   return tr('hoursAgo', { n: hours });
 }
 
+/** Localised short date, e.g. "Nov 22" / "11月22日". */
+export function formatShortDate(unixSeconds: number | undefined, language: Language): string {
+  if (unixSeconds === undefined || !Number.isFinite(unixSeconds) || unixSeconds <= 0) return '—';
+  try {
+    return new Date(unixSeconds * 1000).toLocaleDateString(
+      language === 'zh' ? 'zh-CN' : 'en-US',
+      { month: 'short', day: 'numeric' },
+    );
+  } catch {
+    return '—';
+  }
+}
+
 /** "top 3.2%" style label. */
 export function formatTopPercent(fraction: number): string {
   const pct = Math.max(0, Math.min(1, fraction)) * 100;
@@ -108,6 +121,33 @@ export function contestUrl(contestId: number): string {
 
 export function profileUrl(handle: string): string {
   return `https://codeforces.com/profile/${encodeURIComponent(handle)}`;
+}
+
+/**
+ * Format a timezone offset (minutes east of UTC) as "UTC+8", "UTC-5" or
+ * "UTC+5:30". Used to show which zone an `HH:MM` input is interpreted in.
+ */
+export function formatUtcOffset(offsetMinutes: number): string {
+  const rounded = Math.round(offsetMinutes);
+  const sign = rounded >= 0 ? '+' : '-';
+  const abs = Math.abs(rounded);
+  const hours = Math.floor(abs / 60);
+  const minutes = abs % 60;
+  return `UTC${sign}${hours}${minutes > 0 ? `:${String(minutes).padStart(2, '0')}` : ''}`;
+}
+
+/** The runtime's current UTC offset, e.g. "UTC+8". */
+export function currentUtcOffsetLabel(): string {
+  return formatUtcOffset(-new Date().getTimezoneOffset());
+}
+
+/** IANA zone name when the runtime exposes one, otherwise an empty string. */
+export function resolvedTimeZoneName(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+  } catch {
+    return '';
+  }
 }
 
 export type PhaseTone = 'live' | 'wait' | 'test' | 'done';

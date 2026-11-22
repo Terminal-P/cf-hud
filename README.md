@@ -2,12 +2,10 @@
 
 A cross-platform floating HUD for Codeforces contests: live rank, score, problem status and a rating prediction, in a ~380 px window that stays on top of your IDE.
 
-[![CI](https://github.com/cf-hud/cf-hud/actions/workflows/ci.yml/badge.svg)](https://github.com/cf-hud/cf-hud/actions/workflows/ci.yml)
+[![CI](https://github.com/Terminal-P/cf-hud/actions/workflows/ci.yml/badge.svg)](https://github.com/Terminal-P/cf-hud/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-lightgrey.svg)](#install-and-run)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-
-*The repository URL used in the badges and in the clone command is a placeholder (`github.com/cf-hud/cf-hud`) to be replaced when the project is published elsewhere.*
 
 ## Why
 
@@ -37,9 +35,16 @@ During a rated round you move between the statement, the editor and the standing
 - **Rating history** — a chart of your rating over time, refreshed after the rating is updated.
 - **Rating published notification** — a toast and an OS notification when your new rating is out.
 
+### Virtual participation
+
+- **Replay a finished round** — virtual participants are not part of the official standings payload, so the HUD rebuilds your score from your own submissions, inserts it into the official ranklist, and shows your virtual rank, score, gaps and per-problem state.
+- **Virtual clock** — start the timer when you begin the round on Codeforces. Optionally enter the start time shown on the site to align it immediately (useful before your first submission, or to backfill a finished VP); the first submission then corrects it automatically. Polling speeds up to every 30 seconds while the clock runs.
+- **Virtual performance** — the same seed model, using the contest's pre-contest ratings, answers "what would this have been worth?". It is clearly labelled hypothetical, because virtual rounds do not change your rating.
+- **Auto-resume** — reload the app or restart the desktop build and an active virtual round is picked up again from its stored session.
+
 ### Desktop & UI
 
-- **Floating window** — always-on-top toggle, frameless and draggable, position and size remembered by the OS, and a mini mode.
+- **Floating window** — always-on-top toggle, frameless and draggable, position and size remembered by the OS, and a mini mode with rank, performance, predicted delta and timer — plus the same problem card as the full layout.
 - **Global shortcut** — Ctrl+Shift+H, so you can toggle the overlay from anywhere on desktop without switching windows.
 - **Browser pop-out** — in the browser the HUD is a normal page; Document Picture-in-Picture pops it into a small always-on-top window next to your editor.
 - **Themes & language** — dark and light themes, adjustable opacity, and an English or Simplified Chinese interface.
@@ -55,7 +60,7 @@ During a rated round you move between the statement, the editor and the standing
 ### Web app
 
 ```bash
-git clone https://github.com/cf-hud/cf-hud.git
+git clone https://github.com/Terminal-P/cf-hud.git
 cd cf-hud
 npm install
 npm run dev
@@ -81,18 +86,22 @@ npm run tauri build   # platform installer/bundle
 
 The first desktop run compiles the Rust shell, which takes a few minutes. Current release builds are not code-signed, so the OS may show a security warning on first launch.
 
+#### Windows installer
+
+On Windows, `npm run tauri build` produces a per-user NSIS `.exe` (no admin rights required) and an `.msi` under `src-tauri/target/release/bundle/`. The repository also ships `scripts/build-windows.ps1`, which checks prerequisites, builds both bundles and prints their paths. Without a Windows machine, push the repo to GitHub and run the **Windows installer** workflow (Actions → Windows installer → Run workflow); it uploads both installers as the `cf-hud-windows` artifact. Full prerequisites, output paths and signing notes: [docs/BUILD-WINDOWS.md](docs/BUILD-WINDOWS.md).
+
 ### Other commands
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | Run the Vitest suite (32+ tests). |
+| `npm test` | Run the Vitest suite (50+ tests, including virtual-participation scoring and store integration). |
 | `npm run typecheck` | TypeScript check only. |
 | `npm run calibrate` | Compare predictions with official rating changes on recent contests. Hits the live API. |
 
 ### Project layout
 
 ```
-src/core/     Codeforces API client, standings parser, contest logic, rating math
+src/core/     Codeforces API client, standings parser, contest logic, rating math, virtual participation
 src/data/     Settings (localStorage) and IndexedDB caches
 src/app/      Session store, polling, and the React store hook
 src/ui/       React components and styles
@@ -126,6 +135,7 @@ The result is shown as an interval with a confidence level rather than a single 
 - Standings are polled about every 90 seconds, because the server caches them for 1–3 minutes.
 - Since 2026, `contest.standings` for regular rounds only works as an anonymous GET with exactly one parameter (`contestId`) and returns the full standings — several megabytes, server-cached. CF HUD parses that payload locally and keeps only the small derived model.
 - Participant ratings for the prediction come from `user.ratedList` once per contest and are cached in IndexedDB for 12 hours, so repeat traffic is avoided.
+- Virtual rounds cannot be read from the standings endpoint, so their score is rebuilt from `contest.status?contestId=…&handle=…` (a small response, polled every 30 s while the virtual clock runs). Their performance estimate seeds against the contest's pre-contest ratings from `contest.ratingChanges`, cached for 12 hours.
 - No scraping, no automation, no submission automation, and never other people's source code. The HUD only shows what the public standings already show.
 - Respect the API terms: do not hammer the API, do not build a proxy that multiplies requests, and increase the polling interval (poll less often) if you run multiple instances.
 

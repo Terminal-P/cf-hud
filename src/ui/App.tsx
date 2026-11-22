@@ -13,6 +13,7 @@ import { SettlementView } from './components/SettlementView';
 import { SettingsPanel } from './components/SettingsPanel';
 import { StatusCard } from './components/StatusCard';
 import { Toasts } from './components/Toasts';
+import { VpCard } from './components/VpCard';
 import { WatchList } from './components/WatchList';
 import { ErrorBanner, SkeletonCard } from './components/ui';
 import { describeEvent, notifySystem } from './events';
@@ -158,17 +159,21 @@ export function App() {
             {settingsOpen ? <SettingsPanel onClose={() => setSettingsOpen(false)} /> : null}
 
             {mini ? (
-              <MiniBar />
+              <>
+                <MiniBar />
+                <ProblemMatrix />
+              </>
             ) : (
               <>
                 <ContestBar />
-                {contest ? <StatusCard /> : null}
-                {state.settlement ? <SettlementView /> : null}
+                <VpCard />
+                {contest && !state.vp ? <StatusCard /> : null}
+                {state.settlement && !state.vp ? <SettlementView /> : null}
 
                 {standingsReady && snapshot ? (
                   <>
                     <RankCard />
-                    {contest?.phase === 'FINISHED' ? null : (
+                    {contest?.phase === 'FINISHED' && !state.vp ? null : (
                       <>
                         <PredictionCard />
                         <GoalCard />

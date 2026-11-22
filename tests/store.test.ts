@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CfClient } from '../src/core/api/client';
 import { CodeforcesApi } from '../src/core/api/codeforces';
 import { clearMemoryCache } from '../src/data/storage';
-import type { Contest, RatingChange, StandingsResponse } from '../src/core/types';
+import type { Contest, RatingChange, StandingsResponse, Submission } from '../src/core/types';
 import { SessionStore } from '../src/app/store';
 
 const NOW = 1_800_000_000_000; // fixed "now" for deterministic clocks
@@ -87,6 +87,59 @@ interface FakeApiOptions {
   phase: Contest['phase'];
   ratingChanges?: RatingChange[];
   standigsFor?: (contestId: number) => StandingsResponse;
+  /** Submissions returned by contest.status (virtual participation). */
+  contestStatus?: Submission[];
+}
+
+/** Official ranklist without the virtual user (VP is unofficial). */
+function vpStandings(id: number): StandingsResponse {
+  const base = standings(id, 'FINISHED');
+  return {
+    ...base,
+    contest: contest({ id, phase: 'FINISHED' }),
+    rows: [
+      {
+        party: { members: [{ handle: 'friend' }] },
+        rank: 1,
+        points: 2000,
+        penalty: 50,
+        successfulHackCount: 0,
+        unsuccessfulHackCount: 0,
+        problemResults: [
+          { points: 500, rejectedAttemptCount: 0, type: 'FINAL', bestSubmissionTimeSeconds: 100 },
+          { points: 1000, rejectedAttemptCount: 0, type: 'FINAL', bestSubmissionTimeSeconds: 900 },
+        ],
+      },
+      {
+        party: { members: [{ handle: 'third' }] },
+        rank: 2,
+        points: 0,
+        penalty: 0,
+        successfulHackCount: 0,
+        unsuccessfulHackCount: 0,
+        problemResults: [
+          { points: 0, rejectedAttemptCount: 0, type: 'FINAL' },
+          { points: 0, rejectedAttemptCount: 0, type: 'FINAL' },
+        ],
+      },
+    ],
+  };
+}
+
+function virtualSubmission(index: string, verdict: string, time: number): Submission {
+  return {
+    id: time + 1,
+    contestId: 100,
+    creationTimeSeconds: NOW / 1000,
+    relativeTimeSeconds: time,
+    verdict,
+    problem: { contestId: 100, index, name: `Problem ${index}` },
+    author: {
+      members: [{ handle: 'me' }],
+      participantType: 'VIRTUAL',
+      startTimeSeconds: NOW / 1000 - 1800,
+    },
+  };
 }
 
 function makeStore(options: FakeApiOptions): SessionStore {
@@ -100,11 +153,13 @@ function makeStore(options: FakeApiOptions): SessionStore {
       const contestId = Number(new URL(url).searchParams.get('contestId'));
       return json(options.standigsFor?.(contestId) ?? standings(contestId, options.phase));
     }
+    if (url.includes('/contest.status')) return json(options.contestStatus ?? []);
     if (url.includes('/user.ratedList')) {
       return json([
         { handle: 'friend', rating: 1800 },
         { handle: 'me', rating: 1500 },
         { handle: 'other', rating: 1200 },
+        { handle: 'third', rating: 1100 },
       ]);
     }
     if (url.includes('/contest.ratingChanges')) return json(options.ratingChanges ?? []);
@@ -113,7 +168,7 @@ function makeStore(options: FakeApiOptions): SessionStore {
   }) as typeof fetch;
 
   const api = new CodeforcesApi(new CfClient({ minIntervalMs: 0, fetchImpl, now: () => NOW }));
-  return new SessionStore(api);
+  return new SessionStore(api, () => NOW);
 }
 
 let store: SessionStore;
@@ -238,5 +293,110 @@ describe('SessionStore data pipeline', () => {
     expect(state.contest).toBeNull();
     expect(state.upcomingContest?.id).toBe(200);
     expect(state.snapshot).toBeNull();
+  });
+});
+
+describe('SessionStore virtual participation', () => {
+  it('detects an active virtual round from submissions', async () => {
+    store = makeStore({
+      contests: [contest({ phase: 'FINISHED' })],
+      phase: 'FINISHED',
+      standigsFor: () => vpStandings(100),
+      contestStatus: [
+        virtualSubmission('A', 'OK', 300),
+        virtualSubmission('B', 'WRONG_ANSWER', 900),
+        virtualSubmission('B', 'OK', 1200),
+      ],
+    });
+    await store.setHandle('me');
+    await store.selectContest(100);
+
+    const state = store.getState();
+    expect(state.vp).not.toBeNull();
+    expect(state.vp?.session.source).toBe('detected');
+    expect(state.vp?.session.startTimeSeconds).toBe(NOW / 1000 - 1800);
+    expect(state.vp?.snapshot?.points).toBe(1500);
+    expect(state.vp?.snapshot?.penalty).toBe(35);
+    expect(state.vp?.snapshot?.rank).toBe(2);
+    expect(state.vp?.snapshot?.finished).toBe(false);
+
+    // The cards consume the merged snapshot.
+    expect(state.snapshot?.me?.handle).toBe('me');
+    expect(state.snapshot?.me?.points).toBe(1500);
+    expect(state.snapshot?.me?.rank).toBe(2);
+    expect(state.snapshot?.neighbors.above?.handle).toBe('friend');
+    expect(state.prediction?.ok).toBe(true);
+  });
+
+  it('starts a manual timer and syncs it from the first submission', async () => {
+    const submissions: Submission[] = [];
+    store = makeStore({
+      contests: [contest({ phase: 'FINISHED' })],
+      phase: 'FINISHED',
+      standigsFor: () => vpStandings(100),
+      contestStatus: submissions,
+    });
+    await store.setHandle('me');
+    await store.selectContest(100);
+    expect(store.getState().vp).toBeNull();
+
+    await store.startVirtualParticipation();
+    let state = store.getState();
+    expect(state.vp?.session.source).toBe('manual');
+    expect(state.vp?.session.startTimeSeconds).toBe(NOW / 1000);
+    expect(state.vp?.snapshot?.points).toBe(0);
+
+    submissions.push(virtualSubmission('A', 'OK', 120));
+    await store.refresh(true);
+    state = store.getState();
+    expect(state.vp?.session.source).toBe('detected');
+    expect(state.vp?.session.startTimeSeconds).toBe(NOW / 1000 - 1800);
+    expect(state.vp?.snapshot?.points).toBe(500);
+    expect(state.vp?.snapshot?.penalty).toBe(2);
+  });
+
+  it('accepts an explicit virtual start time', async () => {
+    store = makeStore({
+      contests: [contest({ phase: 'FINISHED' })],
+      phase: 'FINISHED',
+      standigsFor: () => vpStandings(100),
+      contestStatus: [],
+    });
+    await store.setHandle('me');
+    await store.selectContest(100);
+
+    const activeStart = NOW / 1000 - 900;
+    await store.startVirtualParticipation(undefined, activeStart);
+    let state = store.getState();
+    expect(state.vp?.session.startTimeSeconds).toBe(activeStart);
+    expect(state.vp?.session.source).toBe('manual');
+    expect(state.vp?.snapshot?.finished).toBe(false);
+
+    // Backfill an already finished virtual round.
+    const finishedStart = NOW / 1000 - 9000;
+    await store.startVirtualParticipation(undefined, finishedStart);
+    state = store.getState();
+    expect(state.vp?.session.startTimeSeconds).toBe(finishedStart);
+    expect(state.vp?.snapshot?.finished).toBe(true);
+  });
+
+  it('stops tracking and suppresses auto-detection', async () => {
+    store = makeStore({
+      contests: [contest({ phase: 'FINISHED' })],
+      phase: 'FINISHED',
+      standigsFor: () => vpStandings(100),
+      contestStatus: [virtualSubmission('A', 'OK', 300)],
+    });
+    await store.setHandle('me');
+    await store.selectContest(100);
+    expect(store.getState().vp).not.toBeNull();
+
+    await store.stopVirtualParticipation();
+    expect(store.getState().vp).toBeNull();
+    expect(store.getState().snapshot?.me).toBeNull();
+
+    await store.refresh(true);
+    expect(store.getState().vp).toBeNull();
+    expect(store.getState().snapshot?.me).toBeNull();
   });
 });

@@ -32,6 +32,19 @@ export class CodeforcesApi {
     return this.client.call<StandingsResponse>('contest.standings', { contestId });
   }
 
+  /**
+   * Submissions of one handle in one contest. Used for virtual participation,
+   * where the standings endpoint does not include the (unofficial) user.
+   */
+  contestStatus(contestId: number, handle: string, count = 500): Promise<CfCall<Submission[]>> {
+    return this.client.call<Submission[]>('contest.status', {
+      contestId,
+      handle,
+      from: 1,
+      count,
+    });
+  }
+
   ratedList(contestId: number): Promise<CfCall<CfUser[]>> {
     return this.client.call<CfUser[]>('user.ratedList', {
       contestId,

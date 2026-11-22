@@ -1621,6 +1621,139 @@ html[data-shell='pip'] .hud {
 }
 
 /* ================================================================== */
+/* Virtual participation                                              */
+/* ================================================================== */
+
+.vp-card {
+  gap: 8px;
+}
+
+.vp-card--intro {
+  background: linear-gradient(180deg, rgba(74, 125, 255, 0.08), var(--card-bg));
+  border-color: rgba(74, 125, 255, 0.32);
+}
+
+.vp-intro {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.vp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.vp-source {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+.vp-not-counted {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--amber);
+}
+
+.vp-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--red);
+}
+
+.vp-error-label {
+  margin-right: 4px;
+  font-weight: 800;
+}
+
+.vp-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.vp-rounds {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vp-round {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 7px;
+  background: var(--inset-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.vp-round-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.vp-round-name {
+  overflow: hidden;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vp-round-date {
+  font-size: 8.5px;
+  color: var(--text-faint);
+}
+
+.vp-round .btn {
+  flex: 0 0 auto;
+}
+
+.vp-note {
+  margin: 0;
+  padding: 5px 7px;
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  background: var(--accent-soft);
+  border: 1px solid rgba(74, 125, 255, 0.28);
+  border-radius: var(--radius-sm);
+}
+
+[data-theme='light'] .vp-note {
+  border-color: rgba(47, 95, 232, 0.24);
+}
+
+.status-card--vp {
+  background: linear-gradient(180deg, rgba(74, 125, 255, 0.08), var(--card-bg));
+  border-color: rgba(74, 125, 255, 0.32);
+}
+
+.rank-vp-badge {
+  align-self: center;
+  margin-left: 6px;
+  font-size: 7.5px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+
+.mini-bar--vp .mini-metric {
+  border-color: rgba(74, 125, 255, 0.32);
+}
+
+/* ================================================================== */
 /* Settings                                                           */
 /* ================================================================== */
 
@@ -2154,3 +2287,41 @@ html[data-shell='pip'] .hud.is-mini {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ================================================================== */
+/* Virtual participation: optional start time                         */
+/* ================================================================== */
+
+.vp-start-at {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.vp-start-at .input {
+  width: 116px;
+}
+
+.vp-start-at-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vp-tz {
+  padding: 1px 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  background: var(--inset-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
